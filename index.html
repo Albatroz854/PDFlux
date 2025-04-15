@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PDF Converter App</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      height: 100vh;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(15px);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 0 25px rgba(0, 255, 255, 0.2);
+      text-align: center;
+      width: 90%;
+      max-width: 500px;
+      animation: fadeIn 1s ease;
+      position: relative;
+    }
+    h1 {
+      color: #00e6e6;
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+    textarea {
+      width: 100%;
+      height: 200px;
+      padding: 15px;
+      border-radius: 12px;
+      border: none;
+      resize: none;
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      font-size: 16px;
+      outline: none;
+      box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.1);
+      transition: box-shadow 0.3s;
+    }
+    textarea:focus {
+      box-shadow: inset 0 0 10px rgba(0, 255, 255, 0.3);
+    }
+    button, label {
+      margin-top: 15px;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 30px;
+      background: #00e6e6;
+      color: #000;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      display: inline-block;
+      margin-bottom: 10px;
+    }
+    button:hover, label:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0, 255, 255, 0.3);
+    }
+    .nav-btn {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+    }
+    #textPage, #imagePage {
+      display: none;
+      flex-direction: column;
+    }
+    .back-btn {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: none;
+      background: #00e6e6;
+      color: #000;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    .back-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 15px rgba(0, 255, 255, 0.4);
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin: 10px 0;
+    }
+    .preview img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 2px solid #00e6e6;
+    }
+    .credit {
+      margin-top: 20px;
+      font-size: 12px;
+      opacity: 0.7;
+    }
+    .clear-btn {
+      background-color:#ff4d4d;
+      margin-bottom: 10px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="homePage" class="nav-btn">
+      <h1>PDF Converter</h1>
+      <button onclick="showPage('textPage')">Text to PDF</button>
+      <button onclick="showPage('imagePage')">Image to PDF</button>
+    </div>
+
+    <div id="textPage">
+      <button class="back-btn" onclick="showPage('homePage')">⌂</button>
+      <h1>Text to PDF</h1>
+      <textarea id="textInput" placeholder="Type your content here..."></textarea>
+      <input type="text" id="textPdfName" placeholder="Enter PDF name" style="margin:10px 0;padding:10px;width:90%;border-radius:10px;border:none;">
+      <button onclick="generateTextPDF()">Download PDF</button>
+    </div>
+
+    <div id="imagePage">
+      <button class="back-btn" onclick="showPage('homePage')">⌂</button>
+      <h1>Image to PDF</h1>
+      <input type="file" id="imageInput" accept="image/*" multiple onchange="previewImages(event)">
+      <label for="imageInput">Choose Images</label>
+
+      <div class="preview" id="imagePreview"></div>
+
+      <button class="clear-btn" onclick="clearImages()">Clear Images</button>
+      <input type="text" id="imagePdfName" placeholder="Enter PDF name" style="margin:10px 0;padding:10px;width:90%;border-radius:10px;border:none;">
+      <button onclick="generateImagePDF()">Download PDF</button>
+      <p style="font-size:12px;margin-top:10px;opacity:0.7;">NB: Crop images perfectly before uploading</p>
+    </div>
+
+    <div class="credit">
+      Created by <a href="https://www.instagram.com/_v.asudev__?igsh=MTl0bjNvMHRjcmNzZg==" style="color:#00e6e6;" target="_blank">@_v.asudev__</a>
+    </div>
+  </div>
+
+  <script>
+    const { jsPDF } = window.jspdf;
+    let selectedImages = [];
+
+    function showPage(pageId) {
+      document.getElementById('homePage').style.display = 'none';
+      document.getElementById('textPage').style.display = 'none';
+      document.getElementById('imagePage').style.display = 'none';
+      document.getElementById(pageId).style.display = 'flex';
+    }
+
+    function generateTextPDF() {
+      const doc = new jsPDF();
+      const text = document.getElementById("textInput").value;
+      const name = document.getElementById("textPdfName").value || "text-document";
+      const lines = doc.splitTextToSize(text, 180);
+      let y = 10;
+
+      lines.forEach((line) => {
+        if (y > 280) {
+          doc.addPage();
+          y = 10;
+        }
+        doc.text(line, 10, y);
+        y += 10;
+      });
+
+      doc.save(`${name}.pdf`);
+    }
+
+    function previewImages(event) {
+      const files = event.target.files;
+      const preview = document.getElementById("imagePreview");
+      preview.innerHTML = "";
+      selectedImages = [];
+
+      Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          selectedImages.push(e.target.result);
+          const img = document.createElement("img");
+          img.src = e.target.result;
+          preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function clearImages() {
+      selectedImages = [];
+      document.getElementById("imageInput").value = "";
+      document.getElementById("imagePreview").innerHTML = "";
+    }
+
+    async function generateImagePDF() {
+      if (selectedImages.length === 0) return alert("Please select images.");
+      const doc = new jsPDF();
+      const name = document.getElementById("imagePdfName").value || "image-document";
+
+      for (let i = 0; i < selectedImages.length; i++) {
+        const img = await loadImage(selectedImages[i]);
+        const pdfWidth = doc.internal.pageSize.getWidth();
+        const pdfHeight = doc.internal.pageSize.getHeight();
+        const ratio = Math.min(pdfWidth / img.width, pdfHeight / img.height);
+        const imgWidth = img.width * ratio;
+        const imgHeight = img.height * ratio;
+        const x = (pdfWidth - imgWidth) / 2;
+        const y = (pdfHeight - imgHeight) / 2;
+        if (i !== 0) doc.addPage();
+        doc.addImage(img, "JPEG", x, y, imgWidth, imgHeight);
+      }
+
+      doc.save(`${name}.pdf`);
+    }
+
+    function loadImage(src) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = src;
+      });
+    }
+  </script>
+</body>
+</html>
